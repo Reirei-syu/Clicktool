@@ -141,8 +141,15 @@ public partial class MainWindow
             return;
         }
 
+        if (!TryParseLoopCount(out var loopCount, out var loopLabel, out var errorMessage))
+        {
+            SetStatus(errorMessage);
+            return;
+        }
+
+        _loopPlaybackLabel = loopLabel;
         _playbackService.LoadSession(_currentSession);
-        await _playbackService.PlayLoopAsync();
+        await _playbackService.PlayLoopAsync(loopCount);
     }
 
     private async void BtnStepPlay_Click(object sender, RoutedEventArgs e)
@@ -263,7 +270,9 @@ public partial class MainWindow
             if (isPlaying)
             {
                 _preserveIdlePlaybackStatus = false;
-                SetStatus(_playbackService.IsLooping ? "开始循环播放当前方案。" : "开始执行录制内容。");
+                SetStatus(_playbackService.IsLooping
+                    ? $"开始循环播放当前方案（{_loopPlaybackLabel}）。"
+                    : "开始执行录制内容。");
             }
             else if (!_preserveIdlePlaybackStatus)
             {
@@ -294,7 +303,9 @@ public partial class MainWindow
         _ = Dispatcher.InvokeAsync(() =>
         {
             _preserveIdlePlaybackStatus = true;
-            SetStatus("播放完成。");
+            SetStatus(_playbackService.IsLooping
+                ? $"循环播放完成（{_loopPlaybackLabel}）。"
+                : "播放完成。");
             UpdateButtonStates();
         });
     }
@@ -333,5 +344,30 @@ public partial class MainWindow
         SetStatus(completedSteps >= totalSteps
             ? "按步播放已完成。"
             : $"按步播放就绪，当前进度 {completedSteps}/{totalSteps} 步。");
+    }
+
+    private bool TryParseLoopCount(out int? loopCount, out string loopLabel, out string errorMessage)
+    {
+        var rawText = TxtLoopCount.Text?.Trim() ?? "*";
+        if (string.IsNullOrWhiteSpace(rawText) || rawText == "*")
+        {
+            loopCount = null;
+            loopLabel = "无限循环";
+            errorMessage = string.Empty;
+            return true;
+        }
+
+        if (!int.TryParse(rawText, out var parsedCount) || parsedCount < 1)
+        {
+            loopCount = null;
+            loopLabel = string.Empty;
+            errorMessage = "循环次数只能输入 1 以上的整数，或输入 * 表示无限循环。";
+            return false;
+        }
+
+        loopCount = parsedCount;
+        loopLabel = $"共 {parsedCount} 次";
+        errorMessage = string.Empty;
+        return true;
     }
 }

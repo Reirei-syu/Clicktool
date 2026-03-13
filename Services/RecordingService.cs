@@ -135,7 +135,7 @@ public class RecordingService : IDisposable
             Y = y,
             Button = button,
             State = state,
-            IsStepEnd = state == MouseButtonState.Up,
+            IsStepEnd = false,
             DelayMs = delay,
             TimestampMs = now
         };

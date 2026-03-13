@@ -208,4 +208,40 @@ public partial class MainWindow
         SetStatus(message);
         return true;
     }
+
+    internal bool TryDuplicateSteps(IReadOnlyCollection<int> stepNumbers, out string message)
+    {
+        if (!RecordingEditService.TryDuplicateSteps(_currentSession, stepNumbers, out message))
+        {
+            SetStatus(message);
+            return false;
+        }
+
+        foreach (var stepNumber in stepNumbers.Distinct())
+        {
+            _actionGroupExpansionStates[stepNumber] = true;
+            _actionGroupExpansionStates[stepNumber + 1] = true;
+        }
+
+        SaveCurrentSession();
+        RefreshActionList();
+        UpdateButtonStates();
+        SetStatus(message);
+        return true;
+    }
+
+    internal bool TryApplyDelayToActions(IReadOnlyCollection<int> indices, long delayMs, out string message)
+    {
+        if (!RecordingEditService.TryUpdateDelayForActions(_currentSession, indices, delayMs, out message))
+        {
+            SetStatus(message);
+            return false;
+        }
+
+        SaveCurrentSession();
+        RefreshActionList();
+        UpdateButtonStates();
+        SetStatus(message);
+        return true;
+    }
 }

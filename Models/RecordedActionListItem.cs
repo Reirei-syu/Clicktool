@@ -18,6 +18,8 @@ public sealed class RecordedActionListItem
 
     public bool IsStepEnd => Action.IsStepEnd;
 
+    public bool UsesWarmSummaryColor => Action.Action != MouseActionType.Move;
+
     public bool IsSelected { get; set; }
 
     public string BoundaryLabel => Action.IsStepEnd ? "步尾" : "步骤中";

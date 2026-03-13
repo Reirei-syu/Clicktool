@@ -24,7 +24,7 @@ public partial class MainWindow
 
     private void HotkeyBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
-        SetStatus("直接按下你想设置的按键，按 Esc 表示不设置热键。");
+        SetStatus("直接按键设置热键，支持单键或一个修饰键加一个主键，按 Esc 清空。");
     }
 
     private void HotkeyBox_KeyDown(object sender, KeyEventArgs e)
@@ -38,7 +38,7 @@ public partial class MainWindow
 
         if (e.Key == Key.Escape)
         {
-            ApplyHotkey(textBox, 0);
+            SetHotkeyBinding(textBox, default);
             RegisterHotKeys(showFailureStatus: false);
             StorageService.SaveSettings(_settings);
             UpdateHotkeyTextBoxes();
@@ -47,32 +47,30 @@ public partial class MainWindow
         }
 
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
-        if (IsModifierOnlyKey(key))
+        if (HotkeyService.IsModifierOnlyKey(key))
         {
+            SetStatus("请再按一个主键完成热键设置。");
             return;
         }
 
-        var virtualKey = (uint)KeyInterop.VirtualKeyFromKey(key);
-        if (IsHotkeyDuplicate(textBox, virtualKey))
+        if (!HotkeyService.TryCreate(key, Keyboard.Modifiers, out var binding, out var error))
         {
-            SetStatus("热键不能重复，请换一个键。");
+            SetStatus(error);
             return;
         }
 
-        var previousEditorWindow = _settings.HotkeyEditorWindow;
-        var previousRecord = _settings.HotkeyRecord;
-        var previousPlay = _settings.HotkeyPlayAll;
-        var previousStep = _settings.HotkeyStep;
-        var previousStop = _settings.HotkeyStop;
+        if (IsHotkeyDuplicate(textBox, binding))
+        {
+            SetStatus("热键不能重复，请换一个组合。");
+            return;
+        }
 
-        ApplyHotkey(textBox, virtualKey);
+        var snapshot = CaptureHotkeyBindings();
+        SetHotkeyBinding(textBox, binding);
+
         if (!RegisterHotKeys(showFailureStatus: true))
         {
-            _settings.HotkeyEditorWindow = previousEditorWindow;
-            _settings.HotkeyRecord = previousRecord;
-            _settings.HotkeyPlayAll = previousPlay;
-            _settings.HotkeyStep = previousStep;
-            _settings.HotkeyStop = previousStop;
+            RestoreHotkeyBindings(snapshot);
             RegisterHotKeys(showFailureStatus: false);
             UpdateHotkeyTextBoxes();
             SetStatus("热键注册失败，可能被系统或其他软件占用。");
@@ -81,16 +79,16 @@ public partial class MainWindow
 
         StorageService.SaveSettings(_settings);
         UpdateHotkeyTextBoxes();
-        SetStatus($"已更新{GetHotkeyLabel(textBox)}热键。");
+        SetStatus($"已更新{GetHotkeyLabel(textBox)}热键为 {HotkeyService.ToDisplay(binding)}。");
     }
 
     private void UpdateHotkeyTextBoxes()
     {
-        TxtHotkeyEditorWindow.Text = GetHotkeyDisplay(_settings.HotkeyEditorWindow);
-        TxtHotkeyRecord.Text = GetHotkeyDisplay(_settings.HotkeyRecord);
-        TxtHotkeyPlay.Text = GetHotkeyDisplay(_settings.HotkeyPlayAll);
-        TxtHotkeyStep.Text = GetHotkeyDisplay(_settings.HotkeyStep);
-        TxtHotkeyStop.Text = GetHotkeyDisplay(_settings.HotkeyStop);
+        TxtHotkeyEditorWindow.Text = HotkeyService.ToDisplay(GetHotkeyBinding(TxtHotkeyEditorWindow));
+        TxtHotkeyRecord.Text = HotkeyService.ToDisplay(GetHotkeyBinding(TxtHotkeyRecord));
+        TxtHotkeyPlay.Text = HotkeyService.ToDisplay(GetHotkeyBinding(TxtHotkeyPlay));
+        TxtHotkeyStep.Text = HotkeyService.ToDisplay(GetHotkeyBinding(TxtHotkeyStep));
+        TxtHotkeyStop.Text = HotkeyService.ToDisplay(GetHotkeyBinding(TxtHotkeyStop));
     }
 
     private bool RegisterHotKeys(bool showFailureStatus)
@@ -98,23 +96,23 @@ public partial class MainWindow
         var handle = new WindowInteropHelper(this).Handle;
         UnregisterHotKeys();
 
-        var registrations = new (int Id, uint VirtualKey, string Label)[]
+        var registrations = new (int Id, HotkeyBinding Binding, string Label)[]
         {
-            (HotkeyEditorWindowId, _settings.HotkeyEditorWindow, "窗口查看"),
-            (HotkeyRecordId, _settings.HotkeyRecord, "录制"),
-            (HotkeyPlayId, _settings.HotkeyPlayAll, "播放"),
-            (HotkeyStepId, _settings.HotkeyStep, "按步播放"),
-            (HotkeyStopId, _settings.HotkeyStop, "停止")
+            (HotkeyEditorWindowId, GetHotkeyBinding(TxtHotkeyEditorWindow), "窗口查看"),
+            (HotkeyRecordId, GetHotkeyBinding(TxtHotkeyRecord), "录制"),
+            (HotkeyPlayId, GetHotkeyBinding(TxtHotkeyPlay), "播放"),
+            (HotkeyStepId, GetHotkeyBinding(TxtHotkeyStep), "按步播放"),
+            (HotkeyStopId, GetHotkeyBinding(TxtHotkeyStop), "停止")
         };
 
         foreach (var registration in registrations)
         {
-            if (registration.VirtualKey == 0)
+            if (registration.Binding.IsEmpty)
             {
                 continue;
             }
 
-            if (RegisterHotKey(handle, registration.Id, 0, registration.VirtualKey))
+            if (RegisterHotKey(handle, registration.Id, registration.Binding.Modifiers, registration.Binding.VirtualKey))
             {
                 continue;
             }
@@ -122,7 +120,7 @@ public partial class MainWindow
             UnregisterHotKeys();
             if (showFailureStatus)
             {
-                SetStatus($"{registration.Label}热键注册失败，请换一个键。");
+                SetStatus($"{registration.Label}热键注册失败，请换一个组合。");
             }
 
             return false;
@@ -190,20 +188,20 @@ public partial class MainWindow
         return IntPtr.Zero;
     }
 
-    private bool IsHotkeyDuplicate(TextBox currentTextBox, uint virtualKey)
+    private bool IsHotkeyDuplicate(TextBox currentTextBox, HotkeyBinding binding)
     {
-        if (virtualKey == 0)
+        if (binding.IsEmpty)
         {
             return false;
         }
 
         foreach (var pair in new[]
                  {
-                     (TextBox: TxtHotkeyEditorWindow, VirtualKey: _settings.HotkeyEditorWindow),
-                     (TextBox: TxtHotkeyRecord, VirtualKey: _settings.HotkeyRecord),
-                     (TextBox: TxtHotkeyPlay, VirtualKey: _settings.HotkeyPlayAll),
-                     (TextBox: TxtHotkeyStep, VirtualKey: _settings.HotkeyStep),
-                     (TextBox: TxtHotkeyStop, VirtualKey: _settings.HotkeyStop)
+                     (TextBox: TxtHotkeyEditorWindow, Binding: GetHotkeyBinding(TxtHotkeyEditorWindow)),
+                     (TextBox: TxtHotkeyRecord, Binding: GetHotkeyBinding(TxtHotkeyRecord)),
+                     (TextBox: TxtHotkeyPlay, Binding: GetHotkeyBinding(TxtHotkeyPlay)),
+                     (TextBox: TxtHotkeyStep, Binding: GetHotkeyBinding(TxtHotkeyStep)),
+                     (TextBox: TxtHotkeyStop, Binding: GetHotkeyBinding(TxtHotkeyStop))
                  })
         {
             if (ReferenceEquals(pair.TextBox, currentTextBox))
@@ -211,7 +209,7 @@ public partial class MainWindow
                 continue;
             }
 
-            if (pair.VirtualKey == virtualKey)
+            if (pair.Binding == binding)
             {
                 return true;
             }
@@ -220,33 +218,63 @@ public partial class MainWindow
         return false;
     }
 
-    private void ApplyHotkey(TextBox textBox, uint virtualKey)
+    private HotkeyBinding GetHotkeyBinding(TextBox textBox)
     {
         if (ReferenceEquals(textBox, TxtHotkeyEditorWindow))
         {
-            _settings.HotkeyEditorWindow = virtualKey;
+            return new HotkeyBinding(_settings.HotkeyEditorWindow, _settings.HotkeyEditorWindowModifiers);
+        }
+
+        if (ReferenceEquals(textBox, TxtHotkeyRecord))
+        {
+            return new HotkeyBinding(_settings.HotkeyRecord, _settings.HotkeyRecordModifiers);
+        }
+
+        if (ReferenceEquals(textBox, TxtHotkeyPlay))
+        {
+            return new HotkeyBinding(_settings.HotkeyPlayAll, _settings.HotkeyPlayAllModifiers);
+        }
+
+        if (ReferenceEquals(textBox, TxtHotkeyStep))
+        {
+            return new HotkeyBinding(_settings.HotkeyStep, _settings.HotkeyStepModifiers);
+        }
+
+        return new HotkeyBinding(_settings.HotkeyStop, _settings.HotkeyStopModifiers);
+    }
+
+    private void SetHotkeyBinding(TextBox textBox, HotkeyBinding binding)
+    {
+        if (ReferenceEquals(textBox, TxtHotkeyEditorWindow))
+        {
+            _settings.HotkeyEditorWindow = binding.VirtualKey;
+            _settings.HotkeyEditorWindowModifiers = binding.Modifiers;
             return;
         }
 
         if (ReferenceEquals(textBox, TxtHotkeyRecord))
         {
-            _settings.HotkeyRecord = virtualKey;
+            _settings.HotkeyRecord = binding.VirtualKey;
+            _settings.HotkeyRecordModifiers = binding.Modifiers;
             return;
         }
 
         if (ReferenceEquals(textBox, TxtHotkeyPlay))
         {
-            _settings.HotkeyPlayAll = virtualKey;
+            _settings.HotkeyPlayAll = binding.VirtualKey;
+            _settings.HotkeyPlayAllModifiers = binding.Modifiers;
             return;
         }
 
         if (ReferenceEquals(textBox, TxtHotkeyStep))
         {
-            _settings.HotkeyStep = virtualKey;
+            _settings.HotkeyStep = binding.VirtualKey;
+            _settings.HotkeyStepModifiers = binding.Modifiers;
             return;
         }
 
-        _settings.HotkeyStop = virtualKey;
+        _settings.HotkeyStop = binding.VirtualKey;
+        _settings.HotkeyStopModifiers = binding.Modifiers;
     }
 
     private string GetHotkeyLabel(TextBox textBox)
@@ -274,26 +302,23 @@ public partial class MainWindow
         return "停止";
     }
 
-    private static string GetHotkeyDisplay(uint virtualKey)
+    private Dictionary<TextBox, HotkeyBinding> CaptureHotkeyBindings()
     {
-        if (virtualKey == 0)
+        return new Dictionary<TextBox, HotkeyBinding>
         {
-            return "未设置";
-        }
-
-        var key = KeyInterop.KeyFromVirtualKey((int)virtualKey);
-        return key == Key.None ? "未设置" : key.ToString();
+            [TxtHotkeyEditorWindow] = GetHotkeyBinding(TxtHotkeyEditorWindow),
+            [TxtHotkeyRecord] = GetHotkeyBinding(TxtHotkeyRecord),
+            [TxtHotkeyPlay] = GetHotkeyBinding(TxtHotkeyPlay),
+            [TxtHotkeyStep] = GetHotkeyBinding(TxtHotkeyStep),
+            [TxtHotkeyStop] = GetHotkeyBinding(TxtHotkeyStop)
+        };
     }
 
-    private static bool IsModifierOnlyKey(Key key)
+    private void RestoreHotkeyBindings(IReadOnlyDictionary<TextBox, HotkeyBinding> snapshot)
     {
-        return key is Key.LeftCtrl
-            or Key.RightCtrl
-            or Key.LeftAlt
-            or Key.RightAlt
-            or Key.LeftShift
-            or Key.RightShift
-            or Key.LWin
-            or Key.RWin;
+        foreach (var pair in snapshot)
+        {
+            SetHotkeyBinding(pair.Key, pair.Value);
+        }
     }
 }

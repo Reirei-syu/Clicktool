@@ -322,15 +322,37 @@
                         BorderBrush="#203246"
                         BorderThickness="1"
                         CornerRadius="18">
-                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
-                        <UniformGrid Columns="5">
-                            <Button x:Name="BtnRecord" Style="{StaticResource PrimaryActionButton}" Margin="0,0,10,0" Content="录制" Click="BtnRecord_Click" />
-                            <Button x:Name="BtnPlayAll" Style="{StaticResource PrimaryActionButton}" Margin="0,0,10,0" Content="播放全部" Click="BtnPlayAll_Click" />
-                            <Button x:Name="BtnLoopPlay" Style="{StaticResource PrimaryActionButton}" Margin="0,0,10,0" Content="循环播放" Click="BtnLoopPlay_Click" />
-                            <Button x:Name="BtnStepPlay" Style="{StaticResource PrimaryActionButton}" Margin="0,0,10,0" Content="按步播放" Click="BtnStepPlay_Click" />
-                            <Button x:Name="BtnStop" Style="{StaticResource PrimaryActionButton}" Margin="0" Content="停止" Click="BtnStop_Click" />
-                        </UniformGrid>
-                    </Viewbox>
+                    <StackPanel>
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+                            <UniformGrid Columns="5">
+                                <Button x:Name="BtnRecord" Style="{StaticResource PrimaryActionButton}" Margin="0,0,10,0" Content="录制" Click="BtnRecord_Click" />
+                                <Button x:Name="BtnPlayAll" Style="{StaticResource PrimaryActionButton}" Margin="0,0,10,0" Content="播放全部" Click="BtnPlayAll_Click" />
+                                <Button x:Name="BtnLoopPlay" Style="{StaticResource PrimaryActionButton}" Margin="0,0,10,0" Content="循环播放" Click="BtnLoopPlay_Click" />
+                                <Button x:Name="BtnStepPlay" Style="{StaticResource PrimaryActionButton}" Margin="0,0,10,0" Content="按步播放" Click="BtnStepPlay_Click" />
+                                <Button x:Name="BtnStop" Style="{StaticResource PrimaryActionButton}" Margin="0" Content="停止" Click="BtnStop_Click" />
+                            </UniformGrid>
+                        </Viewbox>
+
+                        <Viewbox Margin="0,12,0,0" Stretch="Uniform" StretchDirection="DownOnly">
+                            <WrapPanel VerticalAlignment="Center">
+                                <TextBlock Margin="0,0,10,0"
+                                           VerticalAlignment="Center"
+                                           Text="循环次数"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           FontSize="12" />
+                                <TextBox x:Name="TxtLoopCount"
+                                         Width="88"
+                                         Margin="0,0,12,0"
+                                         VerticalContentAlignment="Center"
+                                         Style="{StaticResource SurfaceTextBoxStyle}"
+                                         Text="*" />
+                                <TextBlock VerticalAlignment="Center"
+                                           Text="输入 1-*，* 代表无限循环"
+                                           Foreground="{StaticResource AccentBrush}"
+                                           FontSize="12" />
+                            </WrapPanel>
+                        </Viewbox>
+                    </StackPanel>
                 </Border>
 
                 <Border Grid.Row="2"

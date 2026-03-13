@@ -50,15 +50,20 @@ public class PlaybackService
         await ExecutePlaybackAsync(loop: false);
     }
 
-    public async Task PlayLoopAsync()
+    public async Task PlayLoopAsync(int? loopCount = null)
     {
         if (_session == null || _session.Actions.Count == 0 || _isPlaying)
         {
             return;
         }
 
+        if (loopCount.HasValue && loopCount.Value < 1)
+        {
+            return;
+        }
+
         _isLooping = true;
-        await ExecutePlaybackAsync(loop: true);
+        await ExecutePlaybackAsync(loop: true, loopCount);
     }
 
     public async Task<bool> StepNextAsync()
@@ -93,7 +98,7 @@ public class PlaybackService
                 ActionExecutor(action);
                 _session.CurrentStepIndex++;
 
-                if (action.IsStepEnd)
+                if (StepDefinitionService.IsEndOfStep(_session.Actions, index))
                 {
                     break;
                 }
@@ -130,13 +135,14 @@ public class PlaybackService
         _session?.ResetPlayback();
     }
 
-    private async Task ExecutePlaybackAsync(bool loop)
+    private async Task ExecutePlaybackAsync(bool loop, int? loopCount = null)
     {
         _isPlaying = true;
         StepDefinitionService.Normalize(_session);
         _session!.ResetPlayback();
         _cts = new CancellationTokenSource();
         OnPlaybackStateChanged?.Invoke(true);
+        var completedLoops = 0;
 
         try
         {
@@ -161,9 +167,13 @@ public class PlaybackService
                 }
 
                 _session.CurrentStepIndex = _session.Actions.Count;
-                if (!loop)
+                completedLoops++;
+
+                var hasReachedLoopTarget = loop && loopCount.HasValue && completedLoops >= loopCount.Value;
+                if (!loop || hasReachedLoopTarget)
                 {
                     OnPlaybackCompleted?.Invoke();
+                    break;
                 }
             }
             while (loop && !_cts.Token.IsCancellationRequested);

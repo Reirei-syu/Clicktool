@@ -22,15 +22,30 @@ public class AppSettings
     [JsonPropertyName("hotkey_editor_window")]
     public uint HotkeyEditorWindow { get; set; } = 0x77; // F8
 
+    [JsonPropertyName("hotkey_editor_window_modifiers")]
+    public uint HotkeyEditorWindowModifiers { get; set; }
+
     [JsonPropertyName("hotkey_record")]
     public uint HotkeyRecord { get; set; } = 0x78; // F9
+
+    [JsonPropertyName("hotkey_record_modifiers")]
+    public uint HotkeyRecordModifiers { get; set; }
 
     [JsonPropertyName("hotkey_playall")]
     public uint HotkeyPlayAll { get; set; } = 0x79; // F10
 
+    [JsonPropertyName("hotkey_playall_modifiers")]
+    public uint HotkeyPlayAllModifiers { get; set; }
+
     [JsonPropertyName("hotkey_step")]
     public uint HotkeyStep { get; set; } = 0x7A; // F11
 
+    [JsonPropertyName("hotkey_step_modifiers")]
+    public uint HotkeyStepModifiers { get; set; }
+
     [JsonPropertyName("hotkey_stop")]
     public uint HotkeyStop { get; set; } = 0x7B; // F12
+
+    [JsonPropertyName("hotkey_stop_modifiers")]
+    public uint HotkeyStopModifiers { get; set; }
 }

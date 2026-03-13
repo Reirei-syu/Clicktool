@@ -37,6 +37,15 @@ public partial class RecordEditorWindow : Window
             .ToList();
     }
 
+    private IReadOnlyList<int> GetSelectedStepNumbers()
+    {
+        return _groups
+            .Where(group => group.Actions.Any(item => item.IsSelected))
+            .Select(group => group.StepNumber)
+            .OrderBy(stepNumber => stepNumber)
+            .ToList();
+    }
+
     private void ActionSelectionCheckBox_Click(object sender, RoutedEventArgs e)
     {
         UpdateButtonStates();
@@ -66,6 +75,26 @@ public partial class RecordEditorWindow : Window
         }
 
         _owner.TryDuplicateStep(stepNumber, out var message);
+        TxtStatus.Text = message;
+        RefreshFromOwner();
+    }
+
+    private void BtnCopySelectedSteps_Click(object sender, RoutedEventArgs e)
+    {
+        _owner.TryDuplicateSteps(GetSelectedStepNumbers(), out var message);
+        TxtStatus.Text = message;
+        RefreshFromOwner();
+    }
+
+    private void BtnApplyBatchDelay_Click(object sender, RoutedEventArgs e)
+    {
+        if (!long.TryParse(TxtBatchDelayMs.Text?.Trim(), out var delayMs) || delayMs < 0)
+        {
+            TxtStatus.Text = "批量等待时间只能输入 0 以上的整数。";
+            return;
+        }
+
+        _owner.TryApplyDelayToActions(GetSelectedIndices(), delayMs, out var message);
         TxtStatus.Text = message;
         RefreshFromOwner();
     }
@@ -163,9 +192,12 @@ public partial class RecordEditorWindow : Window
     {
         var hasItems = _owner.CurrentActionCount > 0;
         var hasSelection = GetSelectedIndices().Count > 0;
+        var hasSelectedSteps = GetSelectedStepNumbers().Count > 0;
 
         BtnMerge.IsEnabled = hasSelection;
         BtnSplit.IsEnabled = hasSelection;
+        BtnCopySelectedSteps.IsEnabled = hasSelectedSteps;
+        BtnApplyBatchDelay.IsEnabled = hasSelection;
         BtnDeleteSelected.IsEnabled = hasSelection;
         BtnDeleteAll.IsEnabled = hasItems;
     }

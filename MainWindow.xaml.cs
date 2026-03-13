@@ -9,7 +9,7 @@ public partial class MainWindow : Window
 {
     private const double CompactWindowSize = 92;
     private const double ExpandedWindowWidth = 468;
-    private const double ExpandedWindowHeight = 840;
+    private const double ExpandedWindowHeight = 860;
 
     private readonly RecordingService _recordingService;
     private readonly PlaybackService _playbackService;
@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     private Point _compactPointerStart;
     private bool _preserveIdlePlaybackStatus;
     private bool _isBottomLayer;
+    private string _loopPlaybackLabel = "无限循环";
 
     public MainWindow()
     {
@@ -50,6 +51,7 @@ public partial class MainWindow : Window
         Top = _settings.WindowTop;
         Opacity = _settings.Opacity;
         SldOpacity.Value = _settings.Opacity;
+        TxtLoopCount.Text = "*";
 
         SetWindowMode(expanded: false);
         EnsureWindowOnScreen();

@@ -1,9 +1,16 @@
+# Build outputs
 bin/
 obj/
 Installer/bin/
 Installer/obj/
 ClickTool.Tests/bin/
 ClickTool.Tests/obj/
-.codex/
+
+# Local logs
 build_log.txt
 build_output.txt
+
+# IDE files
+.vs/
+*.user
+*.suo

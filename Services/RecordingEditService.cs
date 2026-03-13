@@ -39,9 +39,56 @@ public static class RecordingEditService
         return true;
     }
 
+    public static bool TryUpdateDelayForActions(
+        RecordingSession? session,
+        IReadOnlyCollection<int> rawIndices,
+        long delayMs,
+        out string message)
+    {
+        if (session == null)
+        {
+            message = "没有可编辑的录制。";
+            return false;
+        }
+
+        if (delayMs < 0)
+        {
+            message = "等待时间不能小于 0。";
+            return false;
+        }
+
+        var indices = rawIndices
+            .Distinct()
+            .Where(index => index >= 0 && index < session.Actions.Count)
+            .OrderBy(index => index)
+            .ToArray();
+
+        if (indices.Length == 0)
+        {
+            message = "请先选择要修改等待时间的记录。";
+            return false;
+        }
+
+        foreach (var index in indices)
+        {
+            session.Actions[index].DelayMs = delayMs;
+        }
+
+        message = $"已将 {indices.Length} 条记录的等待时间改为 {delayMs} ms。";
+        return true;
+    }
+
     public static bool TryDuplicateStep(
         RecordingSession? session,
         int stepNumber,
+        out string message)
+    {
+        return TryDuplicateSteps(session, new[] { stepNumber }, out message);
+    }
+
+    public static bool TryDuplicateSteps(
+        RecordingSession? session,
+        IReadOnlyCollection<int> rawStepNumbers,
         out string message)
     {
         if (session == null || session.Actions.Count == 0)
@@ -50,23 +97,40 @@ public static class RecordingEditService
             return false;
         }
 
-        StepDefinitionService.Normalize(session);
+        var stepNumbers = rawStepNumbers.Distinct().OrderBy(number => number).ToArray();
+        if (stepNumbers.Length == 0)
+        {
+            message = "请先选择要复制的步骤。";
+            return false;
+        }
+
         var groups = StepDefinitionService.BuildActionGroups(session);
-        var targetGroup = groups.FirstOrDefault(group => group.StepNumber == stepNumber);
-        if (targetGroup == null)
+        var selectedGroups = groups
+            .Where(group => stepNumbers.Contains(group.StepNumber))
+            .OrderBy(group => group.StepNumber)
+            .ToList();
+
+        if (selectedGroups.Count == 0)
         {
             message = "未找到要复制的步骤。";
             return false;
         }
 
-        var insertAt = targetGroup.Actions.Max(item => item.Index) + 1;
-        var clonedActions = targetGroup.Actions
-            .Select(item => CloneAction(item.Action))
-            .ToList();
+        var offset = 0;
+        foreach (var group in selectedGroups)
+        {
+            var insertAt = group.Actions.Max(item => item.Index) + 1 + offset;
+            var clonedActions = group.Actions
+                .Select(item => CloneAction(item.Action))
+                .ToList();
 
-        session.Actions.InsertRange(insertAt, clonedActions);
-        StepDefinitionService.Normalize(session);
-        message = $"已复制步骤 {stepNumber}。";
+            session.Actions.InsertRange(insertAt, clonedActions);
+            offset += clonedActions.Count;
+        }
+
+        message = selectedGroups.Count == 1
+            ? $"已复制步骤 {selectedGroups[0].StepNumber}。"
+            : $"已批量复制 {selectedGroups.Count} 个步骤。";
         return true;
     }
 

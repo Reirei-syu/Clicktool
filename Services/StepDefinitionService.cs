@@ -6,20 +6,7 @@ public static class StepDefinitionService
 {
     public static void Normalize(RecordingSession? session)
     {
-        if (session == null || session.Actions.Count == 0)
-        {
-            return;
-        }
-
-        if (!session.Actions.Any(action => action.IsStepEnd))
-        {
-            foreach (var action in session.Actions)
-            {
-                action.IsStepEnd = action.IsClickRelease;
-            }
-        }
-
-        session.Actions[^1].IsStepEnd = true;
+        _ = session;
     }
 
     public static int GetStepCount(RecordingSession? session)
@@ -29,12 +16,7 @@ public static class StepDefinitionService
 
     public static int GetStepCount(IReadOnlyList<MouseAction> actions)
     {
-        if (actions.Count == 0)
-        {
-            return 0;
-        }
-
-        return actions.Count(action => action.IsStepEnd);
+        return BuildStepRanges(actions).Count;
     }
 
     public static int GetCompletedStepCount(IReadOnlyList<MouseAction> actions, int nextActionIndex)
@@ -44,18 +26,8 @@ public static class StepDefinitionService
             return 0;
         }
 
-        var upperBound = Math.Min(nextActionIndex, actions.Count);
-        var completedSteps = 0;
-
-        for (var index = 0; index < upperBound; index++)
-        {
-            if (actions[index].IsStepEnd)
-            {
-                completedSteps++;
-            }
-        }
-
-        return completedSteps;
+        var upperBoundExclusive = Math.Min(nextActionIndex, actions.Count);
+        return BuildStepRanges(actions).Count(range => range.End < upperBoundExclusive);
     }
 
     public static int GetStepNumber(IReadOnlyList<MouseAction> actions, int actionIndex)
@@ -65,23 +37,29 @@ public static class StepDefinitionService
             return 0;
         }
 
-        if (actionIndex <= 0)
-        {
-            return 1;
-        }
+        var ranges = BuildStepRanges(actions);
+        var normalizedIndex = Math.Max(0, Math.Min(actionIndex, actions.Count - 1));
 
-        var normalizedIndex = Math.Min(actionIndex, actions.Count - 1);
-        var stepNumber = 1;
-
-        for (var index = 0; index < normalizedIndex; index++)
+        for (var stepIndex = 0; stepIndex < ranges.Count; stepIndex++)
         {
-            if (actions[index].IsStepEnd)
+            var range = ranges[stepIndex];
+            if (normalizedIndex >= range.Start && normalizedIndex <= range.End)
             {
-                stepNumber++;
+                return stepIndex + 1;
             }
         }
 
-        return stepNumber;
+        return ranges.Count;
+    }
+
+    public static bool IsEndOfStep(IReadOnlyList<MouseAction> actions, int actionIndex)
+    {
+        if (actionIndex < 0 || actionIndex >= actions.Count)
+        {
+            return false;
+        }
+
+        return BuildStepRanges(actions).Any(range => range.End == actionIndex);
     }
 
     public static List<RecordedActionListItem> BuildListItems(RecordingSession? session)
@@ -92,22 +70,18 @@ public static class StepDefinitionService
             return items;
         }
 
-        Normalize(session);
-
-        var stepNumber = 1;
-        for (var index = 0; index < session.Actions.Count; index++)
+        var ranges = BuildStepRanges(session.Actions);
+        for (var stepIndex = 0; stepIndex < ranges.Count; stepIndex++)
         {
-            var action = session.Actions[index];
-            items.Add(new RecordedActionListItem
+            var range = ranges[stepIndex];
+            for (var index = range.Start; index <= range.End; index++)
             {
-                Index = index,
-                StepNumber = stepNumber,
-                Action = action
-            });
-
-            if (action.IsStepEnd)
-            {
-                stepNumber++;
+                items.Add(new RecordedActionListItem
+                {
+                    Index = index,
+                    StepNumber = stepIndex + 1,
+                    Action = session.Actions[index]
+                });
             }
         }
 
@@ -125,10 +99,13 @@ public static class StepDefinitionService
         }
 
         var items = BuildListItems(session);
-        foreach (var groupItems in items.GroupBy(item => item.StepNumber))
+        var groupedItems = items.GroupBy(item => item.StepNumber).ToList();
+        var hasSingleGroup = groupedItems.Count == 1;
+
+        foreach (var groupItems in groupedItems)
         {
             var actionItems = groupItems.ToList();
-            var defaultExpanded = actionItems.Count == 1;
+            var defaultExpanded = hasSingleGroup || actionItems.Count == 1;
             var isExpanded = expandedStates != null
                 && expandedStates.TryGetValue(groupItems.Key, out var savedExpanded)
                     ? savedExpanded
@@ -156,7 +133,6 @@ public static class StepDefinitionService
         }
 
         session.ResetPlayback();
-        Normalize(session);
     }
 
     public static bool TryMergeSelectionIntoSingleStep(
@@ -177,8 +153,6 @@ public static class StepDefinitionService
             return false;
         }
 
-        Normalize(session);
-
         var start = indices[0];
         var end = indices[^1];
 
@@ -193,7 +167,6 @@ public static class StepDefinitionService
         }
 
         session.Actions[end].IsStepEnd = true;
-        Normalize(session);
         session.ResetPlayback();
 
         message = $"已将 {indices.Length} 条操作合并为一步。";
@@ -212,8 +185,6 @@ public static class StepDefinitionService
             return false;
         }
 
-        Normalize(session);
-
         var start = indices[0];
         if (start > 0)
         {
@@ -228,7 +199,6 @@ public static class StepDefinitionService
             }
         }
 
-        Normalize(session);
         session.ResetPlayback();
 
         message = $"已将 {indices.Length} 条操作拆分为独立步骤。";
@@ -242,17 +212,46 @@ public static class StepDefinitionService
             return;
         }
 
-        Normalize(session);
+        session.Actions[index].IsStepEnd = !session.Actions[index].IsStepEnd;
+        session.ResetPlayback();
+    }
 
-        if (index == session.Actions.Count - 1)
+    private static List<StepRange> BuildStepRanges(IReadOnlyList<MouseAction> actions)
+    {
+        var ranges = new List<StepRange>();
+        if (actions.Count == 0)
         {
-            session.Actions[index].IsStepEnd = true;
-            return;
+            return ranges;
         }
 
-        session.Actions[index].IsStepEnd = !session.Actions[index].IsStepEnd;
-        Normalize(session);
-        session.ResetPlayback();
+        var index = 0;
+        while (index < actions.Count)
+        {
+            var explicitBoundary = FindNextExplicitBoundary(actions, index);
+            if (explicitBoundary < 0)
+            {
+                ranges.Add(new StepRange(index, actions.Count - 1));
+                break;
+            }
+
+            ranges.Add(new StepRange(index, explicitBoundary));
+            index = explicitBoundary + 1;
+        }
+
+        return ranges;
+    }
+
+    private static int FindNextExplicitBoundary(IReadOnlyList<MouseAction> actions, int startIndex)
+    {
+        for (var index = startIndex; index < actions.Count; index++)
+        {
+            if (actions[index].IsStepEnd)
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     private static bool IsContiguous(IReadOnlyList<int> indices)
@@ -267,4 +266,6 @@ public static class StepDefinitionService
 
         return true;
     }
+
+    private readonly record struct StepRange(int Start, int End);
 }
