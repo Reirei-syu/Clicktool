@@ -1,0 +1,9 @@
+bin/
+obj/
+Installer/bin/
+Installer/obj/
+ClickTool.Tests/bin/
+ClickTool.Tests/obj/
+.codex/
+build_log.txt
+build_output.txt

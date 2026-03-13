@@ -1,0 +1,231 @@
+<Window x:Class="ClickTool.SchemeManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="方案列表"
+        Width="860"
+        Height="620"
+        WindowStartupLocation="CenterOwner"
+        Background="#0B121A">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="InkBrush" Color="#FFF3F6FA" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#FFA8BAC8" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF1ED7B5" />
+        <SolidColorBrush x:Key="WarmBrush" Color="#FFFFA65C" />
+
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="MinWidth" Value="108" />
+            <Setter Property="MinHeight" Value="42" />
+            <Setter Property="Margin" Value="0,0,14,0" />
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="Background" Value="#17283B" />
+            <Setter Property="BorderBrush" Value="#24405C" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="Bahnschrift" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="4,0" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#1F334A" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#284360" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.42" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SchemeNameBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="Background" Value="#111C29" />
+            <Setter Property="BorderBrush" Value="#22344C" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="Bahnschrift" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Padding="16,12"
+                Background="#111B28"
+                BorderBrush="#203448"
+                BorderThickness="1"
+                CornerRadius="18">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="方案列表"
+                               Foreground="{StaticResource InkBrush}"
+                               FontFamily="Bahnschrift"
+                               FontSize="20"
+                               FontWeight="Bold" />
+                    <TextBlock x:Name="TxtStatus"
+                               Margin="0,6,0,0"
+                               Text="勾选方案即可切换当前执行对象。"
+                               Foreground="{StaticResource MutedBrush}"
+                               FontSize="12" />
+                </StackPanel>
+
+                <TextBlock x:Name="TxtCounts"
+                           Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource AccentBrush}"
+                           FontFamily="Bahnschrift"
+                           FontSize="14" />
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1"
+                Margin="0,14,0,0"
+                Padding="12"
+                Background="#0F1824"
+                BorderBrush="#203246"
+                BorderThickness="1"
+                CornerRadius="18">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="当前方案名称"
+                               Foreground="{StaticResource MutedBrush}"
+                               FontSize="12" />
+                    <TextBox x:Name="TxtSchemeName"
+                             Margin="0,8,0,0"
+                             Style="{StaticResource SchemeNameBoxStyle}" />
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Margin="14,20,0,0"
+                        Style="{StaticResource ActionButtonStyle}"
+                        Content="关闭"
+                        Click="BtnClose_Click" />
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2"
+                Margin="0,14,0,0"
+                Padding="12"
+                Background="#0F1824"
+                BorderBrush="#203246"
+                BorderThickness="1"
+                CornerRadius="18">
+            <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+                <WrapPanel>
+                    <Button x:Name="BtnRename"
+                            Style="{StaticResource ActionButtonStyle}"
+                            Content="修改名称"
+                            Click="BtnRename_Click" />
+                    <Button x:Name="BtnSaveAs"
+                            Style="{StaticResource ActionButtonStyle}"
+                            Content="另存方案"
+                            Click="BtnSaveAs_Click" />
+                    <Button x:Name="BtnDelete"
+                            Style="{StaticResource ActionButtonStyle}"
+                            Content="删除方案"
+                            Click="BtnDelete_Click" />
+                </WrapPanel>
+            </Viewbox>
+        </Border>
+
+        <Border Grid.Row="3"
+                Margin="0,14,0,0"
+                Padding="12"
+                Background="#0E1722"
+                BorderBrush="#203246"
+                BorderThickness="1"
+                CornerRadius="22">
+            <Grid>
+                <TextBlock x:Name="TxtEmptyState"
+                           Text="当前没有可用方案。"
+                           Foreground="{StaticResource MutedBrush}"
+                           FontSize="13"
+                           TextAlignment="Center"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center"
+                           Visibility="Collapsed" />
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="LstSchemes">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,0,10"
+                                        Padding="12"
+                                        Background="#111C29"
+                                        BorderBrush="#1F3145"
+                                        BorderThickness="1"
+                                        CornerRadius="18">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <CheckBox Grid.Column="0"
+                                                  Margin="0,0,12,0"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding IsCurrent}"
+                                                  Click="SchemeCheckBox_Click" />
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}"
+                                                       Foreground="{StaticResource InkBrush}"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Margin="0,6,0,0"
+                                                       Text="{Binding DisplayName}"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       FontSize="11" />
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Column="2"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource WarmBrush}"
+                                                   FontFamily="Bahnschrift"
+                                                   FontSize="12"
+                                                   Text="{Binding CreatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
