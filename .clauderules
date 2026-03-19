@@ -1,0 +1,11 @@
+# AI Instructions for ClickTool (.clauderules)
+
+## 项目级规范约束 (Project-level Constraint)
+
+每次与用户开启新的关于 ClickTool 的对话时，或者在回答/执行关于此项目的首个指令前，你必须：
+1. **优先读取并解析** `d:\coding\clicktool\prd.md`（产品需求文档）和 `d:\coding\clicktool\spec.md`（技术规范与开发记忆）。
+2. 在理解了当前的项目进度、技术选型和产品逻辑后，再进行代码生成和解答。
+
+在后续开发过程中：
+1. **自动记录修改**：每当有新的功能点加入，或进行重要的架构改动、数据结构变更、技术栈决策时，你**必须**第一时间将修改结果同步更新至 `prd.md` 和 `spec.md` 文档。
+2. 任何脱离了这两个文档约束的随意更改都是不被允许的。
