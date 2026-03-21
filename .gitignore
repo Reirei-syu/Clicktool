@@ -5,6 +5,7 @@ Installer/bin/
 Installer/obj/
 ClickTool.Tests/bin/
 ClickTool.Tests/obj/
+artifacts/
 
 # Local logs
 build_log.txt

@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Extract release metadata
+        id: metadata
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = if ($tag.StartsWith("v")) { $tag.Substring(1) } else { $tag }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "asset_name=ClickTool-win-x64.exe" >> $env:GITHUB_OUTPUT
+          "asset_sha_name=ClickTool-win-x64.exe.sha256" >> $env:GITHUB_OUTPUT
+
+      - name: Run tests
+        shell: pwsh
+        run: dotnet test .\ClickTool.Tests\ClickTool.Tests.csproj -c Release --nologo
+
+      - name: Publish single-file exe
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path .\artifacts\release | Out-Null
+          .\build.ps1 -Version "${{ steps.metadata.outputs.version }}" -OutputDir ".\artifacts\publish"
+          Copy-Item .\artifacts\publish\ClickTool.exe ".\artifacts\release\${{ steps.metadata.outputs.asset_name }}" -Force
+
+      - name: Generate checksum
+        shell: pwsh
+        run: |
+          $assetPath = ".\artifacts\release\${{ steps.metadata.outputs.asset_name }}"
+          $hash = (Get-FileHash -Path $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path ".\artifacts\release\${{ steps.metadata.outputs.asset_sha_name }}" -Value "$hash  ${{ steps.metadata.outputs.asset_name }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.metadata.outputs.tag }}
+          name: ClickTool ${{ steps.metadata.outputs.version }}
+          generate_release_notes: true
+          files: |
+            ./artifacts/release/${{ steps.metadata.outputs.asset_name }}
+            ./artifacts/release/${{ steps.metadata.outputs.asset_sha_name }}
