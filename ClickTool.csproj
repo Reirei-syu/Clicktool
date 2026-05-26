@@ -10,7 +10,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>ClickTool</AssemblyName>
     <RootNamespace>ClickTool</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.3.0</Version>
     <Description>轻量级鼠标录放工具</Description>
 
     <!-- 单文件独立发布配置 -->
