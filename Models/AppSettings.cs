@@ -48,4 +48,11 @@ public class AppSettings
 
     [JsonPropertyName("hotkey_stop_modifiers")]
     public uint HotkeyStopModifiers { get; set; }
+
+    /// <summary>
+    /// Whether the user has seen the initial onboarding/guidance hints.
+    /// Added for usability optimization (Phase 1).
+    /// </summary>
+    [JsonPropertyName("has_seen_guidance")]
+    public bool HasSeenGuidance { get; set; } = false;
 }

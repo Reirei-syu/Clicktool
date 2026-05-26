@@ -219,7 +219,14 @@ public partial class MainWindow
         {
             StepDefinitionService.Normalize(_currentSession);
             SaveCurrentSession();
-            SetStatus($"录制完成，已保存 {_currentSession.Actions.Count} 条操作。");
+
+            if (!_settings.HasSeenGuidance)
+            {
+                _settings.HasSeenGuidance = true;
+                StorageService.SaveSettings(_settings);
+            }
+
+            SetStatus($"录制完成，已保存 {_currentSession.Actions.Count} 条操作。建议打开“步骤列表”查看或编辑。");
         }
         else
         {
@@ -253,6 +260,7 @@ public partial class MainWindow
             }
 
             UpdateButtonStates();
+            UpdateOrbVisualState();
         });
     }
 
@@ -281,6 +289,7 @@ public partial class MainWindow
 
             _preserveIdlePlaybackStatus = false;
             UpdateButtonStates();
+            UpdateOrbVisualState();
         });
     }
 
@@ -326,6 +335,7 @@ public partial class MainWindow
         BtnOpenSchemeManager.IsEnabled = true;
 
         UpdateHintText();
+        UpdateOrbVisualState();
     }
 
     private void UpdateStepStatus()

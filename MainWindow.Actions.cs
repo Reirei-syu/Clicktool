@@ -244,4 +244,42 @@ public partial class MainWindow
         SetStatus(message);
         return true;
     }
+
+    // Usability: safe scheme cycling via hotkey (respects dedicated manager window philosophy)
+    internal bool TrySwitchToNextScheme(out string message)
+    {
+        var schemes = GetSchemeSummaries();
+        if (schemes.Count <= 1)
+        {
+            message = schemes.Count == 0 ? "没有可用方案。" : "只有一个方案，无需切换。";
+            return false;
+        }
+
+        var currentPath = _currentSession?.FilePath;
+        var list = schemes.ToList();
+        int idx = list.FindIndex(s => s.FilePath == currentPath);
+        if (idx < 0) idx = 0;
+
+        var next = list[(idx + 1) % list.Count];
+        return TrySelectScheme(next.FilePath, out message);
+    }
+
+    internal bool TrySwitchToPreviousScheme(out string message)
+    {
+        var schemes = GetSchemeSummaries();
+        if (schemes.Count <= 1)
+        {
+            message = schemes.Count == 0 ? "没有可用方案。" : "只有一个方案，无需切换。";
+            return false;
+        }
+
+        var currentPath = _currentSession?.FilePath;
+        var list = schemes.ToList();
+        int idx = list.FindIndex(s => s.FilePath == currentPath);
+        if (idx < 0) idx = 0;
+
+        int prevIdx = (idx - 1 + list.Count) % list.Count;
+        var prev = list[prevIdx];
+        return TrySelectScheme(prev.FilePath, out message);
+    }
 }

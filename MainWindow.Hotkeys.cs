@@ -14,7 +14,14 @@ public partial class MainWindow
     private const int HotkeyPlayId = 9002;
     private const int HotkeyStepId = 9003;
     private const int HotkeyStopId = 9004;
+    private const int HotkeyNextSchemeId = 9005;
+    private const int HotkeyPrevSchemeId = 9006;
     private const int WmHotkey = 0x0312;
+
+    // Listening mode state for improved hotkey UX (Phase 1 usability)
+    private bool _isHotkeyListening;
+    private TextBox? _listeningBox;
+    private System.Windows.Threading.DispatcherTimer? _hotkeyListenTimeoutTimer;
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
@@ -80,6 +87,129 @@ public partial class MainWindow
         StorageService.SaveSettings(_settings);
         UpdateHotkeyTextBoxes();
         SetStatus($"已更新{GetHotkeyLabel(textBox)}热键为 {HotkeyService.ToDisplay(binding)}。");
+    }
+
+    // === Hotkey Listening Mode (major UX improvement) ===
+    private void StartHotkeyListening(TextBox targetBox)
+    {
+        if (_isHotkeyListening)
+        {
+            CancelHotkeyListening();
+        }
+
+        _isHotkeyListening = true;
+        _listeningBox = targetBox;
+
+        targetBox.Style = (Style)FindResource("HotkeyBoxListeningStyle");
+        targetBox.Text = "请按键... (Esc 取消)";
+
+        SetStatus("正在监听热键输入。按任意键（含修饰键）完成设置，或按 Esc 取消。");
+
+        // Optional 12s timeout for safety
+        _hotkeyListenTimeoutTimer?.Stop();
+        _hotkeyListenTimeoutTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(12)
+        };
+        _hotkeyListenTimeoutTimer.Tick += (_, _) =>
+        {
+            CancelHotkeyListening();
+            SetStatus("热键监听已超时自动取消。");
+        };
+        _hotkeyListenTimeoutTimer.Start();
+
+        // Use PreviewKeyDown on the window so we capture even if focus is elsewhere
+        PreviewKeyDown -= HotkeyListening_PreviewKeyDown;
+        PreviewKeyDown += HotkeyListening_PreviewKeyDown;
+    }
+
+    private void CancelHotkeyListening()
+    {
+        if (!_isHotkeyListening || _listeningBox == null)
+        {
+            return;
+        }
+
+        _hotkeyListenTimeoutTimer?.Stop();
+        _hotkeyListenTimeoutTimer = null;
+
+        PreviewKeyDown -= HotkeyListening_PreviewKeyDown;
+
+        // Restore original style and display text
+        _listeningBox.Style = (Style)FindResource("HotkeyBoxStyle");
+        UpdateHotkeyTextBoxes(); // restores correct "Ctrl+F12" or "未设置"
+
+        _isHotkeyListening = false;
+        _listeningBox = null;
+    }
+
+    private void HotkeyListening_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (!_isHotkeyListening || _listeningBox == null)
+        {
+            return;
+        }
+
+        e.Handled = true;
+
+        if (e.Key == Key.Escape)
+        {
+            CancelHotkeyListening();
+            SetStatus("已取消热键设置。");
+            return;
+        }
+
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (HotkeyService.IsModifierOnlyKey(key))
+        {
+            SetStatus("请再按一个主键完成热键设置。");
+            return;
+        }
+
+        if (!HotkeyService.TryCreate(key, Keyboard.Modifiers, out var binding, out var error))
+        {
+            SetStatus(error);
+            CancelHotkeyListening();
+            return;
+        }
+
+        if (IsHotkeyDuplicate(_listeningBox, binding))
+        {
+            SetStatus("热键不能重复，请换一个组合。");
+            CancelHotkeyListening();
+            return;
+        }
+
+        var snapshot = CaptureHotkeyBindings();
+        SetHotkeyBinding(_listeningBox, binding);
+
+        if (!RegisterHotKeys(showFailureStatus: true))
+        {
+            RestoreHotkeyBindings(snapshot);
+            RegisterHotKeys(showFailureStatus: false);
+            UpdateHotkeyTextBoxes();
+            SetStatus("热键注册失败，可能被系统或其他软件占用。");
+            CancelHotkeyListening();
+            return;
+        }
+
+        StorageService.SaveSettings(_settings);
+        UpdateHotkeyTextBoxes();
+
+        var label = GetHotkeyLabel(_listeningBox);
+        SetStatus($"已更新{label}热键为 {HotkeyService.ToDisplay(binding)}。");
+
+        CancelHotkeyListening();
+    }
+
+    private void HotkeyRecordButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not TextBox target)
+        {
+            return;
+        }
+
+        StartHotkeyListening(target);
     }
 
     private void UpdateHotkeyTextBoxes()

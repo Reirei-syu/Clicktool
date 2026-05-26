@@ -115,6 +115,13 @@
             <Setter Property="HorizontalContentAlignment" Value="Center" />
         </Style>
 
+        <!-- Listening mode for improved hotkey UX (red border + prompt text) -->
+        <Style x:Key="HotkeyBoxListeningStyle" TargetType="TextBox" BasedOn="{StaticResource HotkeyBoxStyle}">
+            <Setter Property="BorderBrush" Value="#EF4444" />
+            <Setter Property="Background" Value="#2A1F1F" />
+            <Setter Property="Foreground" Value="#FCA5A5" />
+        </Style>
+
         <Style x:Key="SurfaceTextBoxStyle" TargetType="TextBox">
             <Setter Property="Padding" Value="10,8" />
             <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
@@ -221,6 +228,52 @@
                     <TextBlock Text="R"
                                Foreground="{StaticResource WarmBrush}"
                                FontFamily="Bahnschrift"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </Border>
+
+                <!-- Usability: Orb state indicators (recording / playing) - decorative only -->
+                <Ellipse x:Name="OrbRecordingDot"
+                         Width="10" Height="10"
+                         HorizontalAlignment="Left"
+                         VerticalAlignment="Top"
+                         Margin="8,8,0,0"
+                         Fill="#FFEF4444"
+                         Opacity="0"
+                         IsHitTestVisible="False"
+                         Visibility="Collapsed">
+                    <Ellipse.Effect>
+                        <DropShadowEffect BlurRadius="6" ShadowDepth="0" Color="#FFEF4444" Opacity="0.6"/>
+                    </Ellipse.Effect>
+                </Ellipse>
+
+                <Ellipse x:Name="OrbPlayingRing"
+                         Width="64" Height="64"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         Stroke="#FF1ED7B5"
+                         StrokeThickness="2.5"
+                         Opacity="0"
+                         IsHitTestVisible="False"
+                         Visibility="Collapsed" />
+
+                <Border x:Name="OrbStepBadge"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Margin="0,0,0,6"
+                        Background="#0F1A26"
+                        BorderBrush="#2A576A"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="4,1"
+                        Opacity="0"
+                        IsHitTestVisible="False"
+                        Visibility="Collapsed">
+                    <TextBlock x:Name="OrbStepText"
+                               Foreground="{StaticResource AccentBrush}"
+                               FontFamily="Bahnschrift"
+                               FontSize="10"
                                FontWeight="Bold"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center" />
@@ -504,47 +557,117 @@
 
                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,0">
                             <TextBlock Text="窗口查看热键" Foreground="{StaticResource MutedBrush}" FontSize="12" />
-                            <TextBox x:Name="TxtHotkeyEditorWindow"
-                                     Style="{StaticResource HotkeyBoxStyle}"
-                                     ToolTip="点击后直接按键，按 Esc 代表不设置"
-                                     KeyDown="HotkeyBox_KeyDown"
-                                     GotKeyboardFocus="HotkeyBox_GotKeyboardFocus" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TxtHotkeyEditorWindow"
+                                         Grid.Column="0"
+                                         Style="{StaticResource HotkeyBoxStyle}"
+                                         ToolTip="点击“录制”或直接按键，按 Esc 代表不设置"
+                                         KeyDown="HotkeyBox_KeyDown"
+                                         GotKeyboardFocus="HotkeyBox_GotKeyboardFocus" />
+                                <Button Grid.Column="1"
+                                        Margin="4,8,0,0"
+                                        Padding="6,4"
+                                        FontSize="10"
+                                        Content="录制"
+                                        Tag="{Binding ElementName=TxtHotkeyEditorWindow}"
+                                        Click="HotkeyRecordButton_Click" />
+                            </Grid>
                         </StackPanel>
 
                         <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,10,0">
                             <TextBlock Text="录制热键" Foreground="{StaticResource MutedBrush}" FontSize="12" />
-                            <TextBox x:Name="TxtHotkeyRecord"
-                                     Style="{StaticResource HotkeyBoxStyle}"
-                                     ToolTip="点击后直接按键，按 Esc 代表不设置"
-                                     KeyDown="HotkeyBox_KeyDown"
-                                     GotKeyboardFocus="HotkeyBox_GotKeyboardFocus" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TxtHotkeyRecord"
+                                         Grid.Column="0"
+                                         Style="{StaticResource HotkeyBoxStyle}"
+                                         ToolTip="点击“录制”或直接按键，按 Esc 代表不设置"
+                                         KeyDown="HotkeyBox_KeyDown"
+                                         GotKeyboardFocus="HotkeyBox_GotKeyboardFocus" />
+                                <Button Grid.Column="1"
+                                        Margin="4,8,0,0"
+                                        Padding="6,4"
+                                        FontSize="10"
+                                        Content="录制"
+                                        Tag="{Binding ElementName=TxtHotkeyRecord}"
+                                        Click="HotkeyRecordButton_Click" />
+                            </Grid>
                         </StackPanel>
 
                         <StackPanel Grid.Row="0" Grid.Column="2">
                             <TextBlock Text="播放热键" Foreground="{StaticResource MutedBrush}" FontSize="12" />
-                            <TextBox x:Name="TxtHotkeyPlay"
-                                     Style="{StaticResource HotkeyBoxStyle}"
-                                     ToolTip="点击后直接按键，按 Esc 代表不设置"
-                                     KeyDown="HotkeyBox_KeyDown"
-                                     GotKeyboardFocus="HotkeyBox_GotKeyboardFocus" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TxtHotkeyPlay"
+                                         Grid.Column="0"
+                                         Style="{StaticResource HotkeyBoxStyle}"
+                                         ToolTip="点击“录制”或直接按键，按 Esc 代表不设置"
+                                         KeyDown="HotkeyBox_KeyDown"
+                                         GotKeyboardFocus="HotkeyBox_GotKeyboardFocus" />
+                                <Button Grid.Column="1"
+                                        Margin="4,8,0,0"
+                                        Padding="6,4"
+                                        FontSize="10"
+                                        Content="录制"
+                                        Tag="{Binding ElementName=TxtHotkeyPlay}"
+                                        Click="HotkeyRecordButton_Click" />
+                            </Grid>
                         </StackPanel>
 
                         <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,12,10,0">
                             <TextBlock Text="按步播放热键" Foreground="{StaticResource MutedBrush}" FontSize="12" />
-                            <TextBox x:Name="TxtHotkeyStep"
-                                     Style="{StaticResource HotkeyBoxStyle}"
-                                     ToolTip="点击后直接按键，按 Esc 代表不设置"
-                                     KeyDown="HotkeyBox_KeyDown"
-                                     GotKeyboardFocus="HotkeyBox_GotKeyboardFocus" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TxtHotkeyStep"
+                                         Grid.Column="0"
+                                         Style="{StaticResource HotkeyBoxStyle}"
+                                         ToolTip="点击“录制”或直接按键，按 Esc 代表不设置"
+                                         KeyDown="HotkeyBox_KeyDown"
+                                         GotKeyboardFocus="HotkeyBox_GotKeyboardFocus" />
+                                <Button Grid.Column="1"
+                                        Margin="4,8,0,0"
+                                        Padding="6,4"
+                                        FontSize="10"
+                                        Content="录制"
+                                        Tag="{Binding ElementName=TxtHotkeyStep}"
+                                        Click="HotkeyRecordButton_Click" />
+                            </Grid>
                         </StackPanel>
 
                         <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,12,10,0">
                             <TextBlock Text="停止热键" Foreground="{StaticResource MutedBrush}" FontSize="12" />
-                            <TextBox x:Name="TxtHotkeyStop"
-                                     Style="{StaticResource HotkeyBoxStyle}"
-                                     ToolTip="点击后直接按键，按 Esc 代表不设置"
-                                     KeyDown="HotkeyBox_KeyDown"
-                                     GotKeyboardFocus="HotkeyBox_GotKeyboardFocus" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TxtHotkeyStop"
+                                         Grid.Column="0"
+                                         Style="{StaticResource HotkeyBoxStyle}"
+                                         ToolTip="点击“录制”或直接按键，按 Esc 代表不设置"
+                                         KeyDown="HotkeyBox_KeyDown"
+                                         GotKeyboardFocus="HotkeyBox_GotKeyboardFocus" />
+                                <Button Grid.Column="1"
+                                        Margin="4,8,0,0"
+                                        Padding="6,4"
+                                        FontSize="10"
+                                        Content="录制"
+                                        Tag="{Binding ElementName=TxtHotkeyStop}"
+                                        Click="HotkeyRecordButton_Click" />
+                            </Grid>
                         </StackPanel>
 
                         <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Margin="0,16,0,0">

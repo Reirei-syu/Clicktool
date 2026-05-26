@@ -59,6 +59,7 @@ public partial class MainWindow : Window
         InitializeSchemes();
         RegisterHotKeys(showFailureStatus: true);
         UpdateButtonStates();
+        UpdateOrbVisualState(); // initial state after load
     }
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -84,7 +85,15 @@ public partial class MainWindow : Window
 
         _currentSession = null;
         RefreshActionList();
-        SetStatus("准备就绪。");
+
+        if (!_settings.HasSeenGuidance)
+        {
+            SetStatus("欢迎使用 ClickTool！点击“录制”开始第一次鼠标操作录制。");
+        }
+        else
+        {
+            SetStatus("准备就绪。");
+        }
     }
 
     private void SetWindowMode(bool expanded)
@@ -322,6 +331,53 @@ public partial class MainWindow : Window
             return;
         }
 
-        TxtHint.Text = "先录制一段鼠标操作，再按需管理方案、打开步骤列表和设置热键。";
+        if (!_settings.HasSeenGuidance)
+        {
+            TxtHint.Text = "首次使用：点击上方“录制”捕获你的鼠标操作，完成后可打开步骤列表精细编辑或设置全局热键。";
+        }
+        else
+        {
+            TxtHint.Text = "先录制一段鼠标操作，再按需管理方案、打开步骤列表和设置热键。";
+        }
+    }
+
+    // Usability: Lightweight orb state updates (only called on state changes, never on per-action hot path)
+    private void UpdateOrbVisualState()
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        var isRecording = _recordingService?.IsRecording ?? false;
+        var isPlaying = _playbackService?.IsPlaying ?? false;
+
+        // Recording dot (red, strong signal) - visible only in compact view implicitly via parent
+        if (OrbRecordingDot != null)
+        {
+            OrbRecordingDot.Visibility = isRecording ? Visibility.Visible : Visibility.Collapsed;
+            OrbRecordingDot.Opacity = isRecording ? 1.0 : 0.0;
+        }
+
+        // Playing ring (teal accent) - only when actively playing and not recording
+        if (OrbPlayingRing != null)
+        {
+            bool showRing = isPlaying && !isRecording;
+            OrbPlayingRing.Visibility = showRing ? Visibility.Visible : Visibility.Collapsed;
+            OrbPlayingRing.Opacity = showRing ? 0.65 : 0.0;
+        }
+
+        // Step progress badge (only during playback with multiple steps)
+        if (OrbStepBadge != null && OrbStepText != null)
+        {
+            bool showBadge = isPlaying && _playbackService != null && _playbackService.TotalSteps > 1;
+            OrbStepBadge.Visibility = showBadge ? Visibility.Visible : Visibility.Collapsed;
+            if (showBadge && _playbackService != null)
+            {
+                var completed = _playbackService.CompletedSteps;
+                var total = _playbackService.TotalSteps;
+                OrbStepText.Text = $"{completed}/{total}";
+            }
+        }
     }
 }
